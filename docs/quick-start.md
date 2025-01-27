@@ -15,7 +15,7 @@ head:
 ---
 
 # Quick Start
-Elysia is optimized for Bun which is a JavaScript runtime that aims to be a drop-in replacement for Node.js.
+Elysia is optimized for Bun, which is a JavaScript runtime that aims to be a drop-in replacement for Node.js.
 
 You can install Bun with the command below:
 ```bash

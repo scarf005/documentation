@@ -25,7 +25,7 @@ We expected it to take around 15-20 minutes if you follow along.
 ---
 
 ### Not a fan of tutorial?
-If you prefers to a more try-it-yourself approach, you can skip this tutorial and go straight to the [key concept](/key-concept) page to get a good understanding of how Elysia works.
+If you prefer a more hands-on approach, you can skip this tutorial and go directly to the [key concept](/key-concept) page for a better understanding of how Elysia works.
 
 <script setup>
 import Card from '../components/nearl/card.vue'
@@ -57,9 +57,102 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 
 :::
 
+::: details Elysia supports [Deno](https://deno.com)!
+
+Because Elysia is [WinterCG](https://wintercg.org) compliant, it also supports Deno. Deno is a runtime similar to Bun that also has built-in formatter, linter, and HTTP imports.
+
+To install Deno:
+
+::: code-group
+
+```bash [MacOS/Linux]
+curl -fsSL https://deno.land/install.sh | sh
+```
+
+```bash [Windows]
+powershell -c "irm https://deno.land/install.ps1 | iex"
+```
+
+:::
+
+When using Elysia with Deno, following changes are required:
+
+### use `.fetch` over `.listen`
+
+On Deno, either use [`Deno.serve`](https://docs.deno.com/api/deno/~/Deno.serve) or [`deno serve`](https://docs.deno.com/runtime/reference/cli/serve/) command as `.listen` method only support Bun. Using `deno serve` is recommended as it's generally faster.
+
+::: code-group
+
+```typescript [deno serve]
+import { Elysia } from 'elysia'
+
+const app = new Elysia() // [!code --]
+export const app = new Elysia() // [!code ++]
+    .get('/', () => 'Hello Elysia')
+    .get('/hello', 'Do you miss me?')
+    .listen(3000) // [!code --]
+
+export default app // [!code ++]
+```
+
+```typescript [Deno.serve]
+import { Elysia } from 'elysia'
+
+const app = new Elysia() // [!code --]
+export const app = new Elysia() // [!code ++]
+    .get('/', () => 'Hello Elysia')
+    .get('/hello', 'Do you miss me?')
+    .listen(3000) // [!code --]
+
+Deno.serve({ port: 3000 }, app.fetch) // [!code ++]
+```
+
+:::
+
+::: code-group
+
+```bash [deno serve]
+deno run -EN main.ts
+```
+
+```bash [Deno.serve]
+deno serve -E main.ts
+```
+
+:::
+
+### Add file extension to imports
+
+On Deno, only ESM-style `.ts` imports are supported.
+
+```typescript
+import { note } from './note' // [!code --]
+import { note } from './note.ts' // [!code ++]
+```
+
+This also means you can import typescript and javascript files directly from the web.
+
+```typescript
+import { note } from './note' // [!code --]
+import { note } from 'https://raw.githubusercontent.com/org/owner/main/path/to/file/note.ts' // [!code ++]
+```
+
+### Use [`esm.sh`](https://esm.sh)
+
+Currently [importing `npm:elysia` has issues with typescript types.](https://github.com/denoland/deno/issues/27367) Until it's resolved, using [esm.sh CLI](https://esm.sh/#cli) is recommended.
+
+```shell
+deno run -A -r https://esm.sh init
+deno task esm:add elysia @elysiajs/swagger
+```
+
+:::
+
 ### Create a new project
 
-```bash
+::: code-group
+
+```bash [Bun]
 # Create a new product
 bun create elysia hi-elysia
 
@@ -70,13 +163,45 @@ cd hi-elysia
 bun install
 ```
 
+```bash [Deno]
+# Create a new directory
+mkdir hi-elysia
+
+# cd into the project
+cd hi-elysia
+
+# Setup project manually; deno templates aren't available yet
+echo '{
+  "tasks": {
+    "dev": "deno serve --watch -E main.ts"
+  },
+}' > deno.json
+echo 'import { Elysia } from "elysia"
+
+const app = new Elysia().get("/", () => "Hello Elysia")
+
+export default app' > main.ts
+deno run -A -r https://esm.sh init
+deno task esm:add elysia
+```
+
+:::
+
 This will create a barebone project with Elysia and basic TypeScript config.
 
 ### Start the development server
 
-```bash
+::: code-group
+
+```bash [Bun]
 bun dev
 ```
+
+```bash [Deno]
+deno task dev
+```
+
+:::
 
 Open your browser and go to **http://localhost:3000**, you should see **Hello Elysia** message on the screen.
 
@@ -85,8 +210,11 @@ Elysia use Bun with `--watch` flag to automatically reload the server when you m
 ## Route
 To add a new route, we specify an HTTP method, a pathname, and a value.
 
-Let's start by opening the `src/index.ts` file as follows:
-```typescript [index.ts]
+Let's start by opening the `src/index.ts` file as shown below:
+
+::: code-group
+
+```typescript [Bun]
 import { Elysia } from 'elysia'
 
 const app = new Elysia()
@@ -94,6 +222,18 @@ const app = new Elysia()
     .get('/hello', 'Do you miss me?') // [!code ++]
     .listen(3000)
 ```
+
+```typescript [Deno]
+import { Elysia } from 'elysia'
+
+export const app = new Elysia()
+    .get('/', () => 'Hello Elysia')
+    .get('/hello', 'Do you miss me?') // [!code ++]
+
+export default app
+```
+
+:::
 
 Open **http://localhost:3000/hello**, you should see **Do you miss me?**.
 
@@ -137,10 +277,23 @@ Entering a URL to the browser can only interact with the GET method. To interact
 
 Luckily, Elysia comes with a **OpenAPI Schema** with [Scalar](https://scalar.com) to interact with our API.
 
-```bash
+::: code-group
+
+```bash [Bun]
 # Install the Swagger plugin
 bun add @elysiajs/swagger
 ```
+
+```json [Deno]
+// @filename: deno.json
+// ---cut---
+  "imports": {
+    "elysia": "https://esm.sh/elysia",
+    "@elysiajs/swagger": "https://esm.sh/@elysiajs/swagger?external=elysia" // [!code ++]
+  }
+```
+
+:::
 
 Then apply the plugin to the Elysia instance.
 
